@@ -1,0 +1,52 @@
+---
+title: "desafio 1"
+author: "Sophia ra277230"
+date: "2025-09-25"
+output:
+  pdf_document: default
+  html_document: default
+---
+carregue os dados utilizando as funções:
+read.csv() do pacote base do 
+```{r}
+# medir o tempo
+start_time <- Sys.time()
+getwd()
+setwd("C:/Users/Shophia/Documents/me315")
+flights_base <- read.csv("flights.csv.zip")
+
+end_time <- Sys.time()
+tempo_base <- end_time - start_time
+print(tempo_base)
+
+```
+
+read_csv() do pacote readr do 
+```{r}
+library(readr)
+
+start_time <- Sys.time()
+
+flights_readr <- read_csv("flights.csv.zip")
+
+end_time <- Sys.time()
+tempo_readr <- end_time - start_time
+print(tempo_readr)
+
+```
+
+read_csv() do pandas no 
+```{python}
+import pandas as pd
+import time
+
+start_time = time.time()
+
+flights_pd = pd.read_csv("flights.csv.zip")
+
+end_time = time.time()
+tempo_pd = end_time - start_time
+print("Tempo pandas:", tempo_pd, "segundos")
+
+```
+
