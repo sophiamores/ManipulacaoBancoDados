@@ -1,0 +1,95 @@
+---
+title: "Desafio_04"
+author: "RafaelaB e SophiaS"
+format: pdf
+editor: visual
+---
+
+## Parte 1
+
+Crie uma função que:
+
+a\. Receba um valor de TAIL_NUMBER (por exemplo, N431WN);
+
+b\. Produza uma tabela (tidy) com todos os trajetos realizados pela aeronave (ordenadas por data e hora, contendo todas as colunas do arquivo flights.csv.zip);
+
+c\. Produza um mapa que apresente todo o trajeto voado pela aeronave ao longo de todo o ano; o trajeto deve ser apresentado de maneira linear no tempo (i.e., segue a sequência do tempo, como no exemplo hipotético dado acima);
+
+d\. O mapa deve ser decorado com estatísticas do seu interesse (por exemplo, velocidade média do vôo como espessura da linha que conecta os aeroportos envolvidos no trajeto);
+
+```{r}
+# Carregar pacotes
+library(tidyverse)
+library(leaflet)
+
+
+
+flights <- read_csv("C:/Users/rafae/Downloads/flights.csv")
+  airports <- read_csv("C:/Users/rafae/Downloads/airports.csv")
+
+# Função principal: só recebe o tail_number
+analisa_aeronave <- function(tail_number) {
+
+  
+  # 2. Filtrar os voos da aeronave
+  dados_aeronave <- flights %>%
+    filter(TAIL_NUMBER == tail_number) %>%
+    arrange(YEAR, MONTH, DAY) 
+  
+  # 3. Tabela tidy com colunas principais
+  tabela_tidy <- dados_aeronave
+  
+  # 4. Juntar coordenadas dos aeroportos
+  dados_geo <- tabela_tidy %>%
+    left_join(airports %>% select(IATA_CODE, LATITUDE, LONGITUDE),
+              by = c("ORIGIN_AIRPORT" = "IATA_CODE")) %>%
+    rename(lat_origin = LATITUDE, lon_origin = LONGITUDE) %>%
+    left_join(airports %>% select(IATA_CODE, LATITUDE, LONGITUDE),
+              by = c("DESTINATION_AIRPORT" = "IATA_CODE")) %>%
+    rename(lat_dest = LATITUDE, lon_dest = LONGITUDE)
+  
+  # 5. Calcular velocidade média (se tiver air_time)
+  dados_geo <- dados_geo %>%
+    mutate(
+      velocidade_media = if_else(!is.na(AIR_TIME) & AIR_TIME > 0,
+                                 DISTANCE / (AIR_TIME / 60),
+                                 NA_real_)
+    )
+  
+  # 6. Criar mapa interativo
+  mapa <- leaflet(dados_geo) %>%
+    addProviderTiles(providers$CartoDB.Positron) %>%
+    addCircleMarkers(~lon_origin, ~lat_origin,
+                     popup = ~paste("Origem:", ORIGIN_AIRPORT),
+                     color = "blue", radius = 4) %>%
+    addCircleMarkers(~lon_dest, ~lat_dest,
+                     popup = ~paste("Destino:", DESTINATION_AIRPORT),
+                     color = "red", radius = 4) %>%
+    addPolylines(lng = ~c(lon_origin, lon_dest),
+                 lat = ~c(lat_origin, lat_dest),
+                 weight = ~if_else(!is.na(velocidade_media),
+                                   pmax(1, velocidade_media/100),
+                                   1),
+                 color = "darkorange",
+                 opacity = 0.7,
+                 popup = ~paste0("Voo: ", ORIGIN_AIRPORT, " → ", DESTINATION_AIRPORT,
+                                 "<br>Vel. média: ",
+                                 if_else(!is.na(velocidade_media),
+                                         paste0(round(velocidade_media,1), " mph"),
+                                         "NA"),
+                                 "<br>Distância: ", DISTANCE, " mi"))
+  
+  # 7. Retornar tabela tidy e mapa
+  return(list(
+    tabela = tabela_tidy,
+    mapa = mapa
+  ))
+}
+#Exemplo com o numero da cauda 'N407AS'
+analisa_aeronave('N407AS')
+
+#Mapa = mapa interativo (não conseguimos exportar) mas aqui está uma imagem de como ficou.
+
+```
+
+![](mapa.png)
