@@ -1,0 +1,185 @@
+---
+title: "desafio 8"
+author: "Sophia ra277230"
+format: pdf
+editor: visual
+---
+
+## Desafio 8
+
+```{r}
+# Registrar a data e hora no início do código
+inicio <- Sys.time()
+cat("O código começou a ser executado em:", inicio, "\n")
+
+# Aqui você coloca o seu código (consultas, processamento, etc.)
+
+# Registrar a data e hora ao final do código
+fim <- Sys.time()
+cat("O código terminou a execução em:", fim, "\n")
+
+# Calcular o tempo de execução
+tempo_execucao <- fim - inicio
+cat("Tempo de execução:", tempo_execucao, "\n")
+```
+
+1.  Baixe o arquivo `uwmadison.sqlite3`. Conecte-se a ele usando o pacote `RSQLite`, armazenando a conexão em uma variável `conn`.
+
+    ```{r}
+    library(RSQLite)
+    library(tidyverse)
+
+    # Conectar ao banco de dados SQLite
+    getwd()
+    conn <- dbConnect(SQLite(), "H:/Documentos/me315/database.sqlite3")
+
+    dbListTables(conn)
+    dbListFields(conn, "grade_distributions")
+    ```
+
+    ```{r}
+    # Verificar as tabelas no banco de dados
+    dbListTables(conn)
+    ```
+
+2.  Quem são e quantos são os professores que lecionaram disciplinas cujo tópico era estatística (`subjects.abbreviation='STAT'`);
+
+    ```{r}
+    #verificando as colunas nas tabelas
+    dbListFields(conn, "course_offerings")
+    dbListFields(conn, "courses")
+    dbListFields(conn, "subjects")
+    dbListFields(conn, "subject_memberships")
+    dbListFields(conn, "teachings")
+    dbListFields(conn, "sections")
+
+    query_1 <- "
+    SELECT i.name AS professor, COUNT(DISTINCT co.uuid) AS num_courses
+    FROM subjects s
+    JOIN subject_memberships sm ON sm.subject_code = s.code
+    JOIN course_offerings co ON co.uuid = sm.course_offering_uuid
+    JOIN sections sec ON sec.course_offering_uuid = co.uuid
+    JOIN teachings t ON t.section_uuid = sec.uuid
+    JOIN instructors i ON i.id = t.instructor_id
+    WHERE s.abbreviation = 'STAT'
+    GROUP BY i.name
+    ORDER BY num_courses DESC
+    "
+
+    result_1 <- dbGetQuery(conn, query_1)
+    print(result_1)
+
+    # Total de professores
+    cat("Total de professores que lecionaram STAT:", nrow(result_1), "\n")
+
+    result_1 <- dbGetQuery(conn, query_1)
+    print(result_1)
+    ```
+
+3.  O GPA americano é definido numa escala de 0 a 4, em que A = 4, AB = 3.5, B = 3, BC = 2.5, C = 2, D = 1 e F = 0. Determinando a nota média de cada oferecimento pela ponderação da quantidade de alunos em cada extrato com os valores numéricos de cada conceito, indique (no que se referente a disciplinas no assunto de estatística):
+
+-   Quem é o professor mais difícil?
+
+-   Quem é o professor mais fácil?
+
+    ```{r}
+    query_2 <- "
+    WITH gpa_calc AS (
+        SELECT 
+            i.name AS professor,
+            SUM(
+                4.0 * gd.a_count +
+                3.5 * gd.ab_count +
+                3.0 * gd.b_count +
+                2.5 * gd.bc_count +
+                2.0 * gd.c_count +
+                1.0 * gd.d_count +
+                0.0 * gd.f_count
+            ) * 1.0 / NULLIF(SUM(
+                gd.a_count + gd.ab_count + gd.b_count + gd.bc_count + gd.c_count + gd.d_count + gd.f_count
+            ), 0) AS avg_gpa
+        FROM grade_distributions gd
+        JOIN course_offerings co ON gd.course_offering_uuid = co.uuid
+        JOIN subject_memberships sm ON sm.course_offering_uuid = co.uuid
+        JOIN subjects s ON s.code = sm.subject_code
+        JOIN sections sec ON sec.course_offering_uuid = co.uuid
+        JOIN teachings t ON t.section_uuid = sec.uuid
+        JOIN instructors i ON i.id = t.instructor_id
+        WHERE s.abbreviation = 'STAT'
+        GROUP BY i.name
+    )
+    SELECT * FROM gpa_calc
+    ORDER BY avg_gpa ASC
+    "
+      
+    result_2 <- dbGetQuery(conn, query_2)
+    print(result_2)
+
+    # Ordenar o resultado pelo avg_gpa (já vem ordenado ascendente na query, mas só pra garantir)
+    result_2 <- result_2[order(result_2$avg_gpa), ]
+
+    # Professor mais difícil (menor GPA)
+    prof_dificil <- result_2$professor[1]
+    gpa_dificil <- result_2$avg_gpa[1]
+
+    # Professor mais fácil (maior GPA)
+    prof_facil <- result_2$professor[nrow(result_2)]
+    gpa_facil <- result_2$avg_gpa[nrow(result_2)]
+
+    cat("Professor mais difícil:", prof_dificil, "com GPA médio de", round(gpa_dificil, 2), "\n")
+    cat("Professor mais fácil:", prof_facil, "com GPA médio de", round(gpa_facil, 2), "\n")
+    ```
+
+-   Qual é a disciplina mais difícil?
+
+-   Qual é a disciplina mais fácil?
+
+    ```{r}
+    query_disciplina <- "
+    WITH gpa_calc AS (
+        SELECT 
+            c.name AS disciplina,
+            SUM(
+                4.0 * gd.a_count +
+                3.5 * gd.ab_count +
+                3.0 * gd.b_count +
+                2.5 * gd.bc_count +
+                2.0 * gd.c_count +
+                1.0 * gd.d_count +
+                0.0 * gd.f_count
+            ) * 1.0 / NULLIF(SUM(
+                gd.a_count + gd.ab_count + gd.b_count + gd.bc_count + gd.c_count + gd.d_count + gd.f_count
+            ), 0) AS avg_gpa
+        FROM grade_distributions gd
+        JOIN course_offerings co ON gd.course_offering_uuid = co.uuid
+        JOIN courses c ON co.course_uuid = c.uuid
+        JOIN subject_memberships sm ON sm.course_offering_uuid = co.uuid
+        JOIN subjects s ON s.code = sm.subject_code
+        WHERE s.abbreviation = 'STAT'
+        GROUP BY c.name
+    )
+    SELECT * FROM gpa_calc
+    ORDER BY avg_gpa ASC
+    "
+
+    result_disciplina <- dbGetQuery(conn, query_disciplina)
+
+    print(result_disciplina)
+
+    # Disciplina mais difícil (menor GPA)
+    disc_dificil <- result_disciplina$disciplina[1]
+    gpa_dificil <- result_disciplina$avg_gpa[1]
+
+    # Disciplina mais fácil (maior GPA)
+    disc_facil <- result_disciplina$disciplina[nrow(result_disciplina)]
+    gpa_facil <- result_disciplina$avg_gpa[nrow(result_disciplina)]
+
+    cat("Disciplina mais difícil:", disc_dificil, "com GPA médio de", round(gpa_dificil, 2), "\n")
+    cat("Disciplina mais fácil:", disc_facil, "com GPA médio de", round(gpa_facil, 2), "\n")
+    ```
+
+4.  Desconecte do banco de dados.
+
+    ```{r}
+    dbDisconnect(conn) 
+    ```
