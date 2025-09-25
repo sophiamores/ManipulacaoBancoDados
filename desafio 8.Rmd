@@ -1,0 +1,89 @@
+---
+title: "desafio 5"
+author: "Sophia ra277230"
+date: "2025-09-25"
+output: html_document
+---
+
+```{r}
+# Carregar pacote
+library(RSQLite)
+
+# 1. Conectar ao banco de dados
+getwd()
+dados <- "database.sqlite3"
+fname <- file.path(path, dados)
+conn <- dbConnect(SQLite(), fname)
+conn <- dbConnect(SQLite(), "C:/Users/Shophia/Downloads/database.sqlite3")
+
+
+# ------------------------------
+# 2. Professores que lecionaram STAT
+query_professores <- "
+SELECT DISTINCT i.instructor_id, i.name
+FROM instructors i
+JOIN courses c ON i.instructor_id = c.instructor_id
+JOIN subjects s ON c.subject_id = s.subject_id
+WHERE s.abbreviation = 'STAT';
+"
+
+professores_stat <- dbGetQuery(conn, query_professores)
+
+cat('Número de professores STAT:', nrow(professores_stat), '\n')
+print(professores_stat)
+
+# ------------------------------
+# 3. Converter notas em GPA
+# A=4, AB=3.5, B=3, BC=2.5, C=2, D=1, F=0
+# Supondo que a tabela grades contenha os conceitos e a contagem de alunos
+
+query_gpa <- "
+SELECT c.course_id,
+       c.title,
+       i.instructor_id,
+       i.name as professor,
+       SUM(CASE g.grade WHEN 'A'  THEN 4.0 * g.n ELSE 0 END +
+           CASE g.grade WHEN 'AB' THEN 3.5 * g.n ELSE 0 END +
+           CASE g.grade WHEN 'B'  THEN 3.0 * g.n ELSE 0 END +
+           CASE g.grade WHEN 'BC' THEN 2.5 * g.n ELSE 0 END +
+           CASE g.grade WHEN 'C'  THEN 2.0 * g.n ELSE 0 END +
+           CASE g.grade WHEN 'D'  THEN 1.0 * g.n ELSE 0 END +
+           CASE g.grade WHEN 'F'  THEN 0.0 * g.n ELSE 0 END) * 1.0 /
+       SUM(g.n) AS gpa_medio
+FROM grades g
+JOIN courses c ON g.course_id = c.course_id
+JOIN instructors i ON c.instructor_id = i.instructor_id
+JOIN subjects s ON c.subject_id = s.subject_id
+WHERE s.abbreviation = 'STAT'
+GROUP BY c.course_id, i.instructor_id;
+"
+
+gpas <- dbGetQuery(conn, query_gpa)
+
+# ------------------------------
+# 4. Quem é o professor mais difícil (menor GPA)
+prof_dificil <- gpas[which.min(gpas$gpa_medio), c("professor", "gpa_medio")]
+cat("Professor mais difícil:\n")
+print(prof_dificil)
+
+# 5. Quem é o professor mais fácil (maior GPA)
+prof_facil <- gpas[which.max(gpas$gpa_medio), c("professor", "gpa_medio")]
+cat("Professor mais fácil:\n")
+print(prof_facil)
+
+# 6. Disciplina mais difícil (menor GPA médio por curso)
+disc_dificil <- gpas[which.min(gpas$gpa_medio), c("title", "gpa_medio")]
+cat("Disciplina mais difícil:\n")
+print(disc_dificil)
+
+# 7. Disciplina mais fácil (maior GPA médio por curso)
+disc_facil <- gpas[which.max(gpas$gpa_medio), c("title", "gpa_medio")]
+cat("Disciplina mais fácil:\n")
+print(disc_facil)
+
+# ------------------------------
+# 8. Desconectar
+dbDisconnect(conn)
+
+```
+
