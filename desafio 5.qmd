@@ -1,0 +1,170 @@
+---
+title: "desafio 5"
+format: html
+editor: visual
+---
+
+## Desafio 5
+
+```{r}
+#install.packages("RSQLite")
+library(RSQLite)
+db = dbConnect(SQLite(), '//smb/ra277230/Documentos/me315/disco.db')
+db
+```
+
+dbListFields(db, 'albums')
+
+```{r}
+dbListTables(db)
+```
+
+```{r}
+dbListFields(db, 'albums')
+```
+
+-   O comando dbGetQuery consulta o banco de dados, extrai os resultados solicitado e os retorna ao R;
+
+-   A sintaxe C) dbGetQuery(\<conexC#o\>, \<chamada sql\>);
+
+-   Extraia da tabela albums todas as colunas e todas as linhas e armazene-os em um objeto chamado album_db:
+
+```{r}
+album_db = dbGetQuery(db, 'SELECT * FROM albums')
+head(album_db)
+
+tracks = dbGetQuery(db, 'SELECT * FROM tracks')
+```
+
+```{r}
+dim(album_db)
+```
+
+O comando SELECT C) o comando mais utilizado em SQL; C , tambC)m, um dos comandos mais complexos; Pode ser combinado com uma sC)rie de argumentos:
+
+-   ORDER BY: ordernar o resultado;
+
+-   DISTINCT: pesquisar por linhas C:nicas;
+
+-   WHERE: filtrar linhas;
+
+-   LIMIT: restringir o nC:mero de linhas do resultado;
+
+-   INNER JOIN/LEFT JOIN: consultar mC:ltiplas tabelas;
+
+-   GROUP BY: agrupar e aplicar funC'C5es para agregaC'C#o nos grupos;
+
+-   HAVING: filtrar em grupos;
+
+Selecione as colunas trackid, name, composer e unitprice. Ordene o objeto resultante por unitprice.
+
+```{r}
+sql = 'SELECT trackid, name, composer, unitprice FROM tracks ORDER BY unitprice'
+res = dbGetQuery(db, sql)
+head(res)
+```
+
+Quais sC#o as cidades de todos os clientes, ordenadas por nome de cidade?
+
+```{r}
+sql = 'SELECT city FROM customers ORDER BY city'
+ex3a = dbGetQuery(db, sql)
+head(ex3a)
+dim(ex3a)
+```
+
+Quais sC#o as cidades de todos os clientes, ordenadas por nome de cidade?
+
+```{r}
+sql = 'SELECT DISTINCT city FROM customers ORDER BY city'
+ex3b = dbGetQuery(db, sql)
+head(ex3b)
+dim(ex3b)
+```
+
+Quais sC#o todas as mC:sicas do C!lbum 1?
+
+```{r}
+ex4 = dbGetQuery(db, 'SELECT name, albumid FROM tracks WHERE albumid=1')
+head(ex4)
+dim(ex4)
+```
+
+Limitando-se a 5 registros, apC3s ordenaC'C#o por nome, quais sC#o os nomes, ID de C!lbum e ID de mC-dia de mC:sicas com mC-dias de tipo 1 ou 2?
+
+```{r}
+sql = paste('SELECT name, albumid, mediatypeid FROM tracks', 
+            'WHERE mediatypeid IN (1, 2)', 
+            'ORDER BY name LIMIT 5')
+ex4b = dbGetQuery(db, sql)
+head(ex4b)
+dim(ex4b)
+```
+
+SeleC'C#odeSeleC'C#o Quais sC#o as mC:sicas e identificadores de faixa e C!lbum produzidas pelo artista que identificador 12?
+
+```{r}
+sql = paste('SELECT trackid, name, albumid FROM tracks',
+            'WHERE albumid IN',
+            '(SELECT albumid FROM albums WHERE artistid==12)')
+ex5 = dbGetQuery(db, sql)
+head(ex5)
+dim(ex5)
+```
+
+Quais sC#o as faixas cujos nomes comeC'am com qualquer caracter seguido de 'ere' e terminam com qualquer expressC#o?
+
+```{r}
+sql = "SELECT trackid, name FROM tracks WHERE name GLOB '?ere*'"
+ex5 = dbGetQuery(db, sql)[1:5,]
+head(ex5)
+dim(ex5)
+```
+
+Quais sC#o as faixas cujos nomes possuem algum dC-gito?
+
+```{r}
+sql = "SELECT trackid, name FROM tracks WHERE name GLOB '*[0-9]*'"
+ex6 = dbGetQuery(db, sql)[1:5,]
+head(ex6)
+dim(ex6)
+```
+
+Quantas faixas por disco?
+
+```{r}
+sql = 'SELECT albumid, COUNT(trackid) FROM tracks GROUP BY albumid'
+ex7 = dbGetQuery(db, sql)[1:5,]
+head(ex7)
+dim(ex7)
+```
+
+Quantas faixas por disco para o album 1?
+
+```{r}
+sql = paste('SELECT albumid, COUNT(trackid)',
+            'FROM tracks GROUP BY albumid',
+            'HAVING albumid=1')
+ex8 = dbGetQuery(db, sql)
+head(ex8)
+
+```
+
+Quais sC#o os nomes de cada faixa com os respectivos tC-tulos dos C!lbums?
+
+```{r}
+sql = paste('SELECT trackid, name, title FROM tracks',
+            'INNER JOIN albums ON albums.albumid=tracks.albumid')
+ex9 = dbGetQuery(db, sql)
+head(ex9)
+```
+
+**FunC'C5esde AgregaC'C#o**
+
+-   AVG: AVG(\[ALL \| DISTINCT\] expressao) calcula a mC)dia de todos os valores nC#o-nulos ou dos valores distintos;
+
+-   COUNT: COUNT(\[ALL \| DISTINCT\] expressao) realiza a contagem de todos registros;
+
+-   MAX, MIN, SUM funcionam de maneira anC!loga C s funC'C5es anteriores;
+
+undefinedundefined
