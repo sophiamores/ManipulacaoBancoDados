@@ -1,0 +1,120 @@
+---
+title: "desafio 9"
+author: "Sophia ra277230"
+date: "2025-09-30"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+# Mostrar data e hora da execução
+message("Execução iniciada em: ", Sys.time())
+
+```
+
+
+# 1. Criar banco de dados e importar arquivos .csv
+```{r}
+library(DBI)
+library(RSQLite)
+
+# Criar/Conectar no banco SQLite
+con <- dbConnect(RSQLite::SQLite(), "voos.sqlite3")
+
+```
+
+```{r}
+library(readr)
+
+# Ler os CSVs
+airlines <- read_csv("airlines.csv")
+airports <- read_csv("airports.csv")
+
+# Gravar nas tabelas
+dbWriteTable(con, "airlines", airlines, overwrite = TRUE)
+dbWriteTable(con, "airports", airports, overwrite = TRUE)
+
+```
+
+# 2. Função para ler e salvar os dados de vôos
+```{r}
+lerDados <- function(input, pos) {
+  # Mostrar mensagem de progresso
+  message("Leitura atingiu a linha ", pos)
+  
+  # Filtrar aeroportos de interesse
+  aeroportos <- c("BWI", "MIA", "SEA", "SFO", "JFK")
+  
+  # Filtra linhas onde ORIGIN_AIRPORT ou DESTINATION_AIRPORT está nos aeroportos selecionados
+  dados_filtrados <- input[input$ORIGIN_AIRPORT %in% aeroportos | input$DESTINATION_AIRPORT %in% aeroportos, ]
+  
+  # Gravar os dados filtrados no banco, acrescentando
+  dbWriteTable(con, "flights", dados_filtrados, append = TRUE)
+  
+  # A função não retorna nada
+  invisible(NULL)
+}
+
+```
+
+# 3. Ler o arquivo flights.csv em pedaços
+
+```{r}
+library(readr)
+
+# Definir as colunas que serão lidas
+col_select <- c("YEAR", "MONTH", "DAY", "AIRLINE", "FLIGHT_NUMBER",
+                "ORIGIN_AIRPORT", "DESTINATION_AIRPORT", "ARRIVAL_DELAY")
+
+# Ler em chunks de 100.000 linhas
+read_csv_chunked(
+  file = "flights.csv.zip",
+  callback = SideEffectChunkCallback$new(lerDados),
+  chunk_size = 100000,
+  col_types = cols_only(
+    YEAR = col_integer(),
+    MONTH = col_integer(),
+    DAY = col_integer(),
+    AIRLINE = col_character(),
+    FLIGHT_NUMBER = col_integer(),
+    ORIGIN_AIRPORT = col_character(),
+    DESTINATION_AIRPORT = col_character(),
+    ARRIVAL_DELAY = col_double()
+  )
+)
+
+```
+
+# 4. Realizar consulta SQL para calcular o tempo médio de atraso por aeroporto
+```{r}
+dbListFields(con, "airports")
+dbListFields(con, "airlines")
+
+
+query <- "
+SELECT
+  f.DESTINATION_AIRPORT AS airport_code,
+  a.AIRPORT AS airport_name,
+  al.AIRLINE AS airline_name,
+  AVG(f.ARRIVAL_DELAY) AS avg_arrival_delay
+FROM flights f
+JOIN airports a ON f.DESTINATION_AIRPORT = a.IATA_CODE
+JOIN airlines al ON f.AIRLINE = al.IATA_CODE
+GROUP BY f.DESTINATION_AIRPORT, a.AIRPORT, al.AIRLINE
+ORDER BY avg_arrival_delay DESC;
+"
+
+resultado <- dbGetQuery(con, query)
+print(resultado)
+# Mostrar data e hora da finalização
+message("Execução finalizada em: ", Sys.time())
+```
+
+# 5. Fechar a conexão com o banco de dados
+```{r}
+dbDisconnect(con)
+```
+
+
+
