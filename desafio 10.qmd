@@ -222,3 +222,174 @@ resultado = (
 ```{python}
 resultado.sort("atraso_medio")
 ```
+
+# **Dados Relacionais com Polars**
+
+## **Estruturas Relacionais com Duas Tabelas**
+
+-   Em bancos de dados relacionais, informações frequentemente estão organizadas em múltiplas tabelas que se relacionam entre si através de chaves.
+
+-   A chave é uma coluna (ou conjunto de colunas) que permite identificar e associar os dados de uma tabela com os de outra.
+
+```{python}
+import polars as pl
+
+# Criando DataFrames
+clientes = pl.DataFrame({
+    "cliente_id": [1, 2, 3, 4],
+    "nome": ["Ana", "Bruno", "Clara", "Daniel"]
+})
+
+print(clientes)
+```
+
+## **Dados Compras**
+
+```{python}
+pedidos = pl.DataFrame({
+    "pedido_id": [101, 102, 103, 104, 105],
+    "cliente_id": [1, 2, 3, 1, 5],
+    "valor": [100.50, 250.75, 75.00, 130.00, 79.00]
+})
+
+print(pedidos)
+```
+
+## **JOINs**
+
+-   Um `JOIN` combina registros de duas tabelas com base em uma coluna comum (chave).
+
+-   É amplamente utilizado em manipulação de dados relacionais.
+
+-   Deve ser empregado para combinar informações de duas (ou mais) tabelas que compartilham chaves entre si.
+
+## **`INNER JOIN`**
+
+Retorna apenas as linhas que têm correspondências (de chaves) nas duas tabelas.
+
+## **Exemplo `INNER JOIN`**
+
+```{python}
+res_ij = clientes.join(pedidos, on="cliente_id", how="inner")
+print(res_ij)
+```
+
+## **`LEFT/RIGHT JOIN`**
+
+Retorna todas as linhas da tabela à esquerda \[direita\] e as correspondentes da direita \[esquerda\] (se houver).
+
+## **Exemplo `LEFT JOIN`**
+
+```{python}
+res_lj = clientes.join(pedidos, on="cliente_id", how="left")
+print(res_lj)
+```
+
+## **Exemplo `RIGHT JOIN`**
+
+```{python}
+res_rj = clientes.join(pedidos, on="cliente_id", how="right")
+print(res_rj)
+```
+
+## **`OUTER JOIN`**
+
+Retorna todas as linhas quando há uma correspondência em uma das tabelas.
+
+## **Exemplo `OUTER JOIN`**
+
+```{python}
+res_oj = clientes.join(pedidos, on="cliente_id", how="outer")
+print(res_oj)
+```
+
+## **`CROSS JOIN`**
+
+Retorna o produto cartesiano de ambas as tabelas.
+
+## **Exemplo `CROSS JOIN`**
+
+```{python}
+res_cj = clientes.join(pedidos, how="cross")
+print(res_cj)
+```
+
+## **Operações em Tabelas Combinadas**
+
+-   Ao final de uma operação do tipo `JOIN`, a tabela resultante continua sendo um `DataFrame`.
+
+-   Todas as operações para `DataFrame` podem ser aplicadas:
+
+    -   Filtros
+
+    -   Seleções
+
+    -   Operações Agregadas
+
+# **P1: Qual é o valor médio das compras realizadas para cada cliente identificado?**
+
+```{python}
+print(clientes)
+```
+
+```{python}
+print(pedidos)
+```
+
+```{python}
+res = res_ij.group_by(["nome", "cliente_id"]).agg(pl.col("valor").mean())
+print(res)
+```
+
+# **P2: Informe os nomes e a quantidade de compras com valor mínimo de \$100.00 realizadas por cada cliente.**
+
+```{python}
+print(clientes)
+```
+
+```{python}
+print(pedidos)
+```
+
+```{python}
+res = (res_oj.with_columns(pl.col("valor") > 100)
+       .group_by("nome")
+       .agg(pl.col("valor").sum()))
+print(res)
+```
+
+## **`JOIN` com Múltiplas Colunas como Chave**
+
+```{python}
+vendas = pl.DataFrame({
+    "id_venda": [1, 2, 3],
+    "id_cl": [1, 2, 1],
+    "id_prod": [101, 102, 103],
+    "qtde": [2, 1, 1]
+})
+
+detalhes_pedidos = pl.DataFrame({
+    "id_ped": [201, 202, 203],
+    "cl_id": [1, 2, 1],
+    "id_prod": [101, 102, 104],
+    "valor": [50.00, 75.00, 100.00]
+})
+```
+
+```{python}
+print(vendas)
+```
+
+```{python}
+print(detalhes_pedidos)
+```
+
+## **Realizando um `JOIN` com Múltiplas Colunas**
+
+```{python}
+final = vendas.join(detalhes_pedidos,
+                    left_on = ["id_cl", "id_prod"],
+                    right_on = ["cl_id", "id_prod"],
+                    how = "inner")
+print(final)
+```
