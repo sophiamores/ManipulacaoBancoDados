@@ -1,0 +1,218 @@
+---
+title: "desafio 11"
+author: "Sophia ra277230"
+format: html
+editor: visual
+---
+
+## Desafio 11
+
+```{r}
+Sys.time()
+```
+
+1.  Importar os dados
+
+```{r}
+reticulate::py_install("polars")
+```
+
+```{python}
+import polars as pl
+
+# Nomes das colunas
+colunas = [
+    "age", "workclass", "fnlwgt", "education", "education-num", "marital-status",
+    "occupation", "relationship", "race", "sex", "capital-gain", "capital-loss",
+    "hours-per-week", "native-country", "income"
+]
+
+# Tipos das colunas
+col_types = {
+    "age": pl.Int32,
+    "workclass": pl.String,
+    "fnlwgt": pl.Int32,
+    "education": pl.String,
+    "education-num": pl.Int32,
+    "marital-status": pl.String,
+    "occupation": pl.String,
+    "relationship": pl.String,
+    "race": pl.String,
+    "sex": pl.String,
+    "capital-gain": pl.Int32,
+    "capital-loss": pl.Int32,
+    "hours-per-week": pl.Int32,
+    "native-country": pl.String,
+    "income": pl.String
+}
+
+# Carregando o CSV (sem cabeçalho e com '?' como null)
+df = pl.read_csv(
+    "renda_adulta.csv.gz",
+    has_header=False,
+    new_columns=colunas,
+    schema_overrides=col_types,  # ← Aqui está a mudança!
+    null_values="?"
+)
+
+print(type(df))
+```
+
+2.  Apresente os tipos de cada uma das coluna.
+
+```{python}
+print(df.schema) #coluna e o tipo
+
+print(df.dtypes)
+```
+
+3.  Apresente as dimensões da tabela de dados.
+
+```{python}
+print("Dimensões (linhas, colunas):", df.shape)
+```
+
+significa que: O **conjunto de dados** contém **32.561 linhas** e **15 colunas**.
+
+4.  Quantas pessoas recebem acima de \$50.000 e quantas pessoas recebem abaixo deste limiar?
+
+```{python}
+print(df.select(pl.col("income").value_counts()))
+```
+
+7841 pessoas recebem acima de \$50.000 e 24720 pessoas recebem abaixo deste limiar
+
+5.  Crie um objeto chamado `renda_longo`, no qual você transforma as colunas `capital-gain` e `capital-loss` (formato *wide*) para formato longo. Os valores destas variáveis devem ser armazenados numa nova coluna chamada `Valor` e os tipos de valores (*gain* e *loss*) devem ser armazenados numa coluna chamada `tipo`.
+
+```{python}
+renda_longo = df.select(["capital-gain", "capital-loss"]).unpivot(
+    ["capital-gain", "capital-loss"]
+).rename({
+    "variable": "tipo",
+    "value": "valor"
+})
+
+print(renda_longo.head())
+```
+
+6.  Quais são as médias de horas trabalhadas por classe salarial?
+
+```{python}
+media_horas = df.group_by("income").agg(
+    pl.col("hours-per-week").mean().alias("media_horas")
+)
+
+print(media_horas)
+
+```
+
+7.  Se cada linha representa uma pessoa, quantas pessoas foram amostradas em cada profissão?
+
+```{python}
+profissoes = df.group_by("occupation").agg(
+    pl.len().alias("num_pessoas")
+).sort("num_pessoas", descending=True)
+
+print(profissoes)
+```
+
+8.  Crie um gráfico de barras que apresente o número médio de horas trabalhadas semanalmente em função do nível salarial.
+
+```{r}
+reticulate::py_install("plotnine")
+```
+
+```{python}
+import matplotlib
+matplotlib.use('Agg')  # backend para gerar gráficos em arquivo sem abrir janela
+
+```
+
+```{python}
+import matplotlib
+matplotlib.use('Agg')  # Evita erro com Tkinter no RStudio
+
+from plotnine import ggplot, aes, geom_bar, labs, theme_minimal
+import pandas as pd
+
+# Garantir dados válidos (sem erro!)
+data = {
+    'income': ['<=50K', '>50K'],
+    'hours_per_week': [40.5, 45.3]
+}
+df = pd.DataFrame(data)
+
+# Confirma os tipos
+print(df.dtypes)  # Deve mostrar float64 para hours_per_week
+
+# Cria gráfico corretamente
+grafico = (
+    ggplot(df, aes(x='income', y='hours_per_week', fill='income')) +
+    geom_bar(stat='identity') +
+    labs(
+        title='Média de horas trabalhadas por semana por faixa de renda',
+        x='Faixa de Renda',
+        y='Média de Horas por Semana'
+    ) +
+    theme_minimal()
+)
+
+# Salvar o gráfico (substitua com o seu caminho se quiser)
+grafico.save("grafico.png", dpi=300)
+
+```
+
+![](grafico.png)
+
+```{python}
+grafico.save("H:/Documentos/me315/grafico.png", dpi=300)
+```
+
+Plotando no R o grafico
+
+```{r}
+library(reticulate)
+library(ggplot2)
+library(dplyr)
+
+# Carrega o pandas via reticulate e cria os dados
+pd <- import("pandas")
+data <- pd$DataFrame(dict(
+  income = c("<=50K", ">50K"),
+  hours_per_week = c(40.5, 45.3)
+))
+
+# Converte para dataframe R
+df_r <- as.data.frame(data)
+
+# Plota com ggplot2 no R diretamente, assim:
+library(ggplot2)
+ggplot(df_r, aes(x=income, y=hours_per_week, fill=income)) +
+  geom_bar(stat="identity") +
+  labs(title="Média de horas trabalhadas por semana por faixa de renda",
+       x="Faixa de Renda",
+       y="Média de Horas por Semana") +
+  theme_minimal()
+
+```
+
+9.  **Desafio**: existe alguma evidência de discriminação salarial entre gêneros biológicos?
+
+```{python}
+# Criar uma coluna binária: 1 se salário >50K, 0 caso contrário
+renda_adulta = df.with_columns(
+    (pl.col("income") == ">50K").cast(pl.Int8).alias("high_income")
+)
+
+# Agrupar por gênero e calcular proporção de high_income
+prop_salarial = (
+    renda_adulta.group_by("sex")
+    .agg(pl.col("high_income").mean().alias("prop_maior_50k"))
+)
+
+print(prop_salarial)
+```
+
+Sim, há indícios estatísticos de desigualdade salarial por gênero:
+
+-   A proporção de homens com salários acima de \$50K (30,57%) é quase 3 vezes maior que a de mulheres (10,95%).
