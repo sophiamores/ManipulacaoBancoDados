@@ -1,0 +1,111 @@
+---
+title: "desafio 13"
+author: "Sophia ra277230"
+date: "2025-10-16"
+output:
+  pdf_document: default
+  html_document: default
+---
+Desafio 13
+```{r}
+Sys.time()
+```
+```{r}
+getwd()
+```
+```{r}
+#install.packages(c("RSQLite", "DBI", "readr", "dplyr", "stringr"))
+```
+
+```{r}
+library(readr)
+library(dplyr)
+library(DBI)
+library(RSQLite)
+
+# Lê os arquivos TSV compactados
+basics <- read_tsv("title.basics0.tsv.gz", na = "\\N", quote = "")
+ratings <- read_tsv("title.ratings.tsv.gz", na = "\\N", quote = "")
+principals <- read_tsv("title.principals0.tsv.gz", na = "\\N", quote = "")
+```
+
+
+
+
+1 Crie um banco de dados SQLite utilizando os 3 arquivos acima. O banco de dados deve conter as seguintes tabelas: basics, ratings e principals
+```{r}
+# Criar conexão com banco SQLite (será criado no mesmo diretório)
+con <- dbConnect(SQLite(), "movies.sqlite3")
+
+# Salvar os dataframes como tabelas
+dbWriteTable(con, "basics", basics, overwrite = TRUE)
+dbWriteTable(con, "ratings", ratings, overwrite = TRUE)
+dbWriteTable(con, "principals", principals, overwrite = TRUE)
+
+```
+
+
+2 (Utilizando SQL, responda): Quais são os 5 filmes com as maiores notas (averageRating)? Apresente uma solução capaz de desempatar os filmes baseando-se no número de votos recebidos.
+
+```{r}
+query1 <- "
+SELECT b.primaryTitle, r.averageRating, r.numVotes
+FROM ratings r
+JOIN basics b ON r.tconst = b.tconst
+WHERE b.titleType = 'movie'
+ORDER BY r.averageRating DESC, r.numVotes DESC
+LIMIT 5
+"
+
+top5_movies <- dbGetQuery(con, query1)
+print(top5_movies)
+```
+
+3 (Utilizando SQL, responda): Qual é o gênero mais frequente entre os filmes com nota maior que 8?
+
+```{r}
+query2 <- "
+SELECT b.genres
+FROM ratings r
+JOIN basics b ON r.tconst = b.tconst
+WHERE r.averageRating > 8 AND b.titleType = 'movie'
+"
+
+genres_df <- dbGetQuery(con, query2)
+
+# Separar e contar os gêneros
+library(tidyr)
+genre_counts <- genres_df %>%
+  filter(!is.na(genres)) %>%
+  separate_rows(genres, sep = ",") %>%
+  count(genres, sort = TRUE)
+
+# Exibir o gênero mais frequente
+head(genre_counts, 1)
+```
+
+4 (Utilizando SQL, responda): Quais são os 3 atores/atrizes que mais participaram de filmes com nota maior que 7.5?
+```{r}
+query3 <- "
+SELECT p.nconst, COUNT(*) AS num_filmes
+FROM principals p
+JOIN ratings r ON p.tconst = r.tconst
+JOIN basics b ON p.tconst = b.tconst
+WHERE r.averageRating > 7.5
+  AND b.titleType = 'movie'
+  AND p.category IN ('actor', 'actress')
+GROUP BY p.nconst
+ORDER BY num_filmes DESC
+LIMIT 3
+"
+
+top3_atores <- dbGetQuery(con, query3)
+print(top3_atores)
+```
+
+
+5
+```{r}
+dbDisconnect(con)
+```
+
