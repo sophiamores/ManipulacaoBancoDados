@@ -1,0 +1,99 @@
+---
+title: "desafio 14"
+format: pdf
+editor: visual
+---
+
+## Desafio 14
+
+1.  Importe o conjunto de dados `diamonds`, cujo arquivo está disponível no website da disciplina.
+
+```{r}
+#reticulate::py_install("scikit-misc")
+#install.packages("knitr")
+#install.packages("rmarkdown")
+
+```
+
+```{python}
+import pandas as pd
+from plotnine import *
+from plotnine.data import diamonds
+from plotnine import ggplot, aes, geom_point, geom_smooth, facet_grid, labs, theme_light, theme
+
+# Verificando as primeiras linhas
+print(diamonds.head())
+```
+
+2\.
+
+```{python}
+from plotnine import ggplot, aes, geom_point, geom_smooth, facet_grid, labs, theme_light, theme
+g1 = (
+    ggplot(diamonds, aes(x='carat', y='price')) +
+    geom_point(alpha=0.3, color="#1f77b4") +
+    labs(
+        title='Relação entre Peso (carat) e Preço (price)',
+        x='Peso',
+        y='Preço (USD)',
+    ) +
+    theme_minimal()
+)
+
+g1.save('grafico_q2.png')
+
+```
+
+![](grafico_q2.png)
+
+3
+
+```{python}
+from plotnine import ggplot, aes, geom_point, geom_smooth, facet_grid, labs, theme_light, theme
+# Gráfico separando por corte
+g2 = (
+    ggplot(diamonds) +
+    aes(x='carat', y='price', color = 'cut') +
+    geom_point(alpha=0.3) +
+    facet_grid(cols='cut')+
+    labs(
+        title='Relação entre Peso e Preço por Tipo de Corte',
+        x='Peso (carat)',
+        y='Preço (USD)',
+        color='Corte'
+    ) +
+    theme_bw()
+)
+
+g2.save('grafico_q3.png')
+```
+
+![](grafico_q3.png)
+
+4
+
+```{python}
+# Amostragem para facilitar a visualização (dataset é muito grande)
+diamonds_sample = diamonds.sample(5000, random_state=42)
+
+g3 = (
+    ggplot(diamonds_sample, aes(x='carat', y='price', color='cut')) +
+    geom_point(alpha=0.4, size=1) +
+    facet_grid('color ~ clarity') +
+    labs(
+        title='Relação entre Preço e Peso por Corte, Cor e Clareza',
+        x='Peso (carat)',
+        y='Preço (USD)'
+    ) +
+    theme_light() +
+    theme(
+        legend_position='top',
+        subplots_adjust={'wspace': 0.25}
+    )
+)
+print(g3)
+g3.save('grafico_q4.png')
+
+```
+
+![](grafico_q4.png)
