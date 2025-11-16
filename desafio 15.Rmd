@@ -1,0 +1,79 @@
+---
+title: "desafio 15"
+author: "Sophia ra277230"
+date: "2025-11-16"
+output:   
+  pdf_document:
+    latex_engine: xelatex
+---
+
+```{r}
+install.packages("tinytex")
+tinytex::install_tinytex()
+```
+
+
+Instalação de Júlia 
+
+```{r}
+#install.packages("JuliaCall")
+library(JuliaCall)
+julia <- julia_setup()
+```
+
+```{r}
+system("where julia", intern = TRUE)
+```
+
+
+```{r}
+# Instala BenchmarkTools
+julia_command('import Pkg; Pkg.add("BenchmarkTools")')
+
+# Se quiser, pode instalar outros pacotes necessários também
+julia_command('import Pkg; Pkg.add("Random")')
+```
+
+
+```{r}
+library(JuliaCall)
+
+# Conecta com Julia
+julia <- julia_setup()  # já funciona, como você confirmou
+
+# Carrega pacotes Julia necessários
+julia_command("using BenchmarkTools, Distributed, Random, Base.Threads")
+
+# Definindo tamanho do vetor
+julia_command("N = 10^7; data = rand(N)")
+
+# Função em série
+julia_command("
+function loop_serial(data)
+    result = zeros(length(data))
+    for i in 1:length(data)
+        result[i] = sqrt(data[i]) * sin(data[i])
+    end
+    return result
+end
+")
+
+# Função paralela usando Threads
+julia_command("
+function loop_parallel(data)
+    result = zeros(length(data))
+    Threads.@threads for i in 1:length(data)
+        result[i] = sqrt(data[i]) * sin(data[i])
+    end
+    return result
+end
+")
+
+# Medindo tempo série
+julia_command("println(\"Tempo série:\"); @time result_serial = loop_serial(data)")
+
+# Medindo tempo paralelo
+julia_command("println(\"Tempo paralelo:\"); @time result_parallel = loop_parallel(data)")
+
+```
+
